@@ -5,13 +5,14 @@
   import SplashScreen from './lib/SplashScreen.svelte';
   import IconButton from './lib/IconButton.svelte';
   import OptionsScreen from './lib/OptionsScreen.svelte';
+  import ModeToggle from './lib/ModeToggle.svelte';
   import { AudioEngine } from './lib/AudioEngine.js';
 
   let currentScreen = $state('splash');
   let audioEngine = $state(null);
   let audioInitialized = false;
+  let playMode = $state('bow'); // 'bow' or 'pluck'
 
-  // Settings for Bars
   let settings = $state(loadSavedSettings());
 
   function loadSavedSettings() {
@@ -26,7 +27,6 @@
       }
     }
     
-    // Return defaults if nothing saved
     return {
       topRow: { note: 'C4', visible: true },
       secondRow: { note: 'F4', visible: true },
@@ -114,6 +114,13 @@
       window.dispatchEvent(new Event('resize'));
     }, 100);
   }
+
+  function handleModeChange(event) {
+    playMode = event.detail;
+    if (audioEngine) {
+      audioEngine.setMode(playMode);
+    }
+  }
 </script>
 
 {#if currentScreen === 'splash'}
@@ -144,7 +151,12 @@
     />
   </div>
   
-  <div style="position: fixed; top: 20px; right: 70px; z-index: 1000;">
+  <ModeToggle 
+    mode={playMode}
+    on:change={handleModeChange}
+  />
+  
+  <div style="position: fixed; top: 20px; right: 90px; z-index: 1000;">
     <IconButton 
       type="settings" 
       ariaLabel="Options"
@@ -155,7 +167,8 @@
   <main>
     <ResponsiveContainer>
       <GridContainer 
-        {audioEngine} 
+        {audioEngine}
+        {playMode}
         {settings}
       />
     </ResponsiveContainer>

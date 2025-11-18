@@ -2,7 +2,7 @@
   import { onMount, onDestroy } from 'svelte';
   import Row from './Row.svelte';
   
-  let { audioEngine, settings } = $props();
+  let { audioEngine, playMode, settings } = $props();
   
   // Define the four rows with their colors and notes
   let rows = $derived(settings ? [
@@ -128,6 +128,7 @@
       note={row.note}
       rowIndex={rowIndex}
       {audioEngine}
+      {playMode}
     />
   {/each}
 </div>

@@ -51,12 +51,24 @@
         align-items: center;
         justify-content: center;
         
-        /* Respect safe areas (notch, home indicator) */
-        padding-top: env(safe-area-inset-top);
+        /* Add top padding for buttons */
+        padding-top: calc(80px + env(safe-area-inset-top));
         padding-bottom: env(safe-area-inset-bottom);
         padding-left: env(safe-area-inset-left);
         padding-right: env(safe-area-inset-right);
         
         box-sizing: border-box;
+    }
+    
+    @media (max-width: 480px) {
+        .responsive-container {
+            padding-top: calc(70px + env(safe-area-inset-top));
+        }
+    }
+    
+    @media (orientation: landscape) and (max-height: 500px) {
+        .responsive-container {
+            padding-top: calc(60px + env(safe-area-inset-top));
+        }
     }
 </style>

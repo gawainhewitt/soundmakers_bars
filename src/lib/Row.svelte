@@ -7,6 +7,7 @@
   export let note = 'C4';
   export let rowIndex = 0;
   export let audioEngine = null;
+  export let playMode = 'bow'; // 'bow' or 'pluck'
   
   let element;
   let isTouching = false;
@@ -14,28 +15,37 @@
   let lastX = null;
   let lastMoveTime = null;
   let currentVolume = 0;
-  let recentMovements = []; // Track recent movement speeds
+  let recentMovements = [];
   let animationFrame = null;
   
-  // Movement tracking
-  const MOVEMENT_HISTORY_SIZE = 5; // Average over last N movements
-  const VOLUME_SMOOTHING = 0.8; // How smoothly volume changes
-  const SPEED_TO_VOLUME = 2; // Multiplier to convert speed to volume
+  const MOVEMENT_HISTORY_SIZE = 5;
+  const VOLUME_SMOOTHING = 0.8;
+  const SPEED_TO_VOLUME = 2;
   const MIN_VOLUME_THRESHOLD = 0.05;
   const MAX_VOLUME = 1.0;
-  const DECAY_RATE = 0.88; // How quickly volume decays when not moving (faster decay)
-  const RELEASE_MULTIPLIER = 0.7; // Extra decay when finger is lifted
+  const DECAY_RATE = 0.88;
+  const RELEASE_MULTIPLIER = 0.7;
+  
+  // Different behavior for pluck mode
+  $: isPluckMode = playMode === 'pluck';
   
   function handleMouseDown(e) {
     isTouching = true;
-    lastX = e.clientX;
-    lastMoveTime = Date.now();
-    recentMovements = [];
-    startTracking();
+    
+    if (isPluckMode) {
+      // In pluck mode, trigger immediately on click
+      triggerPluck();
+    } else {
+      // In bow mode, start tracking movement
+      lastX = e.clientX;
+      lastMoveTime = Date.now();
+      recentMovements = [];
+      startTracking();
+    }
   }
   
   function handleMouseMove(e) {
-    if (!isTouching) return;
+    if (!isTouching || isPluckMode) return;
     updateMovement(e.clientX);
   }
   
@@ -46,16 +56,21 @@
   function handleTouchStart(e) {
     e.preventDefault();
     isTouching = true;
-    const touch = e.touches[0];
-    lastX = touch.clientX;
-    lastMoveTime = Date.now();
-    recentMovements = [];
-    startTracking();
+    
+    if (isPluckMode) {
+      triggerPluck();
+    } else {
+      const touch = e.touches[0];
+      lastX = touch.clientX;
+      lastMoveTime = Date.now();
+      recentMovements = [];
+      startTracking();
+    }
   }
   
   function handleTouchMove(e) {
     e.preventDefault();
-    if (!isTouching) return;
+    if (!isTouching || isPluckMode) return;
     const touch = e.touches[0];
     updateMovement(touch.clientX);
   }
@@ -63,6 +78,21 @@
   function handleTouchEnd(e) {
     e.preventDefault();
     stopInteraction();
+  }
+  
+  function triggerPluck() {
+    if (audioEngine) {
+      audioEngine.playNote(note, `row-${rowIndex}`, 0.8);
+      
+      // Visual feedback
+      isPlaying = true;
+      currentVolume = 1.0;
+      
+      setTimeout(() => {
+        isPlaying = false;
+        currentVolume = 0;
+      }, 300);
+    }
   }
   
   function updateMovement(currentX) {
@@ -76,13 +106,9 @@
     const deltaTime = Math.max(now - lastMoveTime, 1);
     const distancePixels = Math.abs(currentX - lastX);
     
-    // Convert pixels to viewport width percentage
     const distanceVw = (distancePixels / window.innerWidth) * 100;
-    
-    // Calculate speed (vw per millisecond)
     const speed = distanceVw / deltaTime;
     
-    // Add to recent movements history
     recentMovements.push(speed);
     if (recentMovements.length > MOVEMENT_HISTORY_SIZE) {
       recentMovements.shift();
@@ -99,7 +125,7 @@
   }
   
   function startTracking() {
-    if (animationFrame) return;
+    if (animationFrame || isPluckMode) return;
     
     const update = () => {
       const now = Date.now();
@@ -107,36 +133,27 @@
       
       let targetVolume = 0;
       
-      if (timeSinceLastMove < 100) { // Recent movement
-        // Calculate target volume from average speed
+      if (timeSinceLastMove < 100) {
         const avgSpeed = getAverageSpeed();
         targetVolume = Math.min(avgSpeed * SPEED_TO_VOLUME, MAX_VOLUME);
       } else {
-        // No recent movement - decay
         targetVolume = 0;
       }
       
-      // Apply extra decay if finger is lifted
       const decayRate = isTouching ? DECAY_RATE : DECAY_RATE * RELEASE_MULTIPLIER;
       
-      // Smooth volume toward target
       if (targetVolume > currentVolume) {
-        // Rising - be responsive
         currentVolume = currentVolume * 0.7 + targetVolume * 0.3;
       } else {
-        // Falling - smooth decay
         currentVolume = currentVolume * VOLUME_SMOOTHING + targetVolume * (1 - VOLUME_SMOOTHING);
         
-        // Apply decay multiplier
         if (targetVolume === 0) {
           currentVolume *= decayRate;
         }
       }
       
-      // Update audio
       updateAudio();
       
-      // Continue tracking while touching or while volume is fading
       if (isTouching || currentVolume > 0.01) {
         animationFrame = requestAnimationFrame(update);
       } else {
@@ -152,20 +169,17 @@
   function updateAudio() {
     if (currentVolume > MIN_VOLUME_THRESHOLD) {
       if (!isPlaying) {
-        // Start playing
         isPlaying = true;
         if (audioEngine) {
           audioEngine.playNote(note, `row-${rowIndex}`, currentVolume);
         }
       } else {
-        // Update volume of playing note
         if (audioEngine) {
           audioEngine.setVelocity(`row-${rowIndex}`, currentVolume);
         }
       }
     } else {
       if (isPlaying) {
-        // Stop playing
         isPlaying = false;
         if (audioEngine) {
           audioEngine.stopNote(`row-${rowIndex}`);
@@ -177,7 +191,6 @@
   function stopInteraction() {
     isTouching = false;
     lastX = null;
-    // Volume will decay faster now that finger is lifted
   }
   
   $: visualIntensity = currentVolume;
@@ -193,7 +206,7 @@
   class="row"
   class:touching={isTouching}
   class:playing={isPlaying}
-  style="background-color: {color}; filter: brightness({1 + (visualIntensity * 0.3)});"
+  style="background-color: {color};"
   on:mousedown={handleMouseDown}
   on:touchstart={handleTouchStart}
   on:touchmove={handleTouchMove}
@@ -206,7 +219,7 @@
   </div>
   
   {#if isTouching || isPlaying}
-    <div class="volume-indicator" style="opacity: {visualIntensity * 0.5}"></div>
+    <div class="volume-indicator" style="opacity: {visualIntensity * 0.9}"></div>
   {/if}
 </div>
 
@@ -242,7 +255,7 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background: radial-gradient(circle, rgba(255, 255, 255, 0.4) 0%, transparent 70%);
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0.2) 50%, transparent 70%);
     pointer-events: none;
   }
   
