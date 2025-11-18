@@ -126,14 +126,14 @@
 {#if currentScreen === 'splash'}
   <SplashScreen 
     title="Bars"
-    instructions="To play: touch or click screen or use computer keyboard keys"
+    instructions="Bow: drag horizontally or alternate keyboard keys. Pluck: tap or press key. Use settings to change notes."
     footerNote="On Apple devices, turn off silent mode"
     on:click={handleSplashClick}
   />
 {:else if currentScreen === 'about'}
   <SplashScreen 
     title="Bars"
-    instructions="To play: touch or click screen or use computer keyboard keys"
+    instructions="Bow: drag horizontally or alternate keyboard keys. Pluck: tap or press key. Use settings to change notes."
     footerNote="On Apple devices, turn off silent mode"
     on:click={handleAboutClose}
   />

@@ -115,7 +115,7 @@
   }
   
   .instructions {
-    font-size: 2rem;
+    font-size: 1.5rem;
     margin-bottom: 2rem;
     color: #555;
     line-height: 1.6;
@@ -156,11 +156,11 @@
     }
     
     .instructions {
-      font-size: 2rem;
+      font-size: 1.3rem;
     }
     
     .footer-note {
-      font-size: 1.2rem;
+      font-size: 1rem;
     }
     
     .bottom-left,
