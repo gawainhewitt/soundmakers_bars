@@ -7,8 +7,10 @@
   export let note = 'C4';
   export let rowIndex = 0;
   export let audioEngine = null;
-  export let playMode = 'bow'; // 'bow' or 'pluck'
-  
+  export let playMode = 'bow';
+  export let keyboardActive = false;
+  export let keyboardVolume = 0;
+
   let element;
   let isTouching = false;
   let isPlaying = false;
@@ -26,17 +28,18 @@
   const DECAY_RATE = 0.88;
   const RELEASE_MULTIPLIER = 0.7;
   
-  // Different behavior for pluck mode
   $: isPluckMode = playMode === 'pluck';
+  
+  // Combine touch/mouse volume with keyboard volume for display
+  $: displayVolume = Math.max(currentVolume, keyboardVolume);
+  $: showIndicator = isTouching || isPlaying || keyboardActive;
   
   function handleMouseDown(e) {
     isTouching = true;
     
     if (isPluckMode) {
-      // In pluck mode, trigger immediately on click
       triggerPluck();
     } else {
-      // In bow mode, start tracking movement
       lastX = e.clientX;
       lastMoveTime = Date.now();
       recentMovements = [];
@@ -84,7 +87,6 @@
     if (audioEngine) {
       audioEngine.playNote(note, `row-${rowIndex}`, 0.8);
       
-      // Visual feedback
       isPlaying = true;
       currentVolume = 1.0;
       
@@ -192,8 +194,6 @@
     isTouching = false;
     lastX = null;
   }
-  
-  $: visualIntensity = currentVolume;
 </script>
 
 <svelte:window 
@@ -206,6 +206,7 @@
   class="row"
   class:touching={isTouching}
   class:playing={isPlaying}
+  class:keyboard-active={keyboardActive}
   style="background-color: {color};"
   on:mousedown={handleMouseDown}
   on:touchstart={handleTouchStart}
@@ -218,8 +219,8 @@
     {note}
   </div>
   
-  {#if isTouching || isPlaying}
-    <div class="volume-indicator" style="opacity: {visualIntensity * 0.9}"></div>
+  {#if showIndicator}
+    <div class="volume-indicator" style="opacity: {displayVolume * 0.9}"></div>
   {/if}
 </div>
 

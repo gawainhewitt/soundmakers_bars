@@ -4,7 +4,6 @@
   
   let { audioEngine, playMode, settings } = $props();
   
-  // Define the four rows with their colors and notes
   let rows = $derived(settings ? [
     { 
       id: 0, 
@@ -32,7 +31,6 @@
     }
   ].filter(row => row.visible) : []);
   
-  // Map keyboard keys to row indices
   let keyMap = $derived.by(() => {
     const map = {};
     const keyRows = [
@@ -52,14 +50,25 @@
     return map;
   });
   
-  // Track which keys are currently held down
   let heldKeys = $state(new Set());
+  
+  // Track keyboard bowing for each row
+  let keyboardBowing = $state(new Map()); // Map<rowIndex, {lastKeyTime, lastKey, velocity, isPlaying}>
+  let rowVisuals = $state(new Map()); // Map<rowIndex, {isActive, volume}>
+  
+  const KEYBOARD_BOW_DECAY = 0.85; // Faster decay
+  const KEYBOARD_BOW_SPEED_MULTIPLIER = 0.22; // How much each keypress adds to velocity
+  const MIN_KEYBOARD_VELOCITY = 0.7; // minimum velocity for single keypress
+  const KEYBOARD_NOTE_TIMEOUT = 200; // Stop note if no key pressed within this time (ms)
+  let keyboardAnimationFrame = null;
   
   onMount(() => {
     window.addEventListener('keydown', handleKeydown);
     window.addEventListener('keyup', handleKeyup);
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('blur', handleWindowBlur);
+    
+    startKeyboardTracking();
   });
   
   onDestroy(() => {
@@ -67,6 +76,10 @@
     window.removeEventListener('keyup', handleKeyup);
     document.removeEventListener('visibilitychange', handleVisibilityChange);
     window.removeEventListener('blur', handleWindowBlur);
+    
+    if (keyboardAnimationFrame) {
+      cancelAnimationFrame(keyboardAnimationFrame);
+    }
     
     if (audioEngine) {
       audioEngine.panic();
@@ -78,6 +91,7 @@
       console.log('Page hidden - stopping all notes');
       audioEngine.panic();
       heldKeys.clear();
+      keyboardBowing.clear();
     }
   }
 
@@ -86,6 +100,7 @@
       console.log('Window blur - stopping all notes');
       audioEngine.panic();
       heldKeys.clear();
+      keyboardBowing.clear();
     }
   }
   
@@ -94,23 +109,151 @@
       if (audioEngine) {
         audioEngine.panic();
         heldKeys.clear();
+        keyboardBowing.clear();
       }
       return;
     }
     
     const key = e.key.toLowerCase();
     if (keyMap.hasOwnProperty(key)) {
-      if (heldKeys.has(key)) return;
+      if (heldKeys.has(key)) return; // Key already held
       heldKeys.add(key);
       
       const rowIndex = keyMap[key];
       const row = rows[rowIndex];
       
-      if (audioEngine && row) {
-        audioEngine.playNote(row.note, `row-${rowIndex}`);
-        console.log('Key pressed:', key, '→', row.note);
+      if (!row) return;
+      
+      if (playMode === 'pluck') {
+        // Pluck mode: simple trigger
+        if (audioEngine) {
+          audioEngine.playNote(row.note, `row-${rowIndex}`, 0.8);
+        }
+        
+        // Visual feedback
+        triggerRowVisual(rowIndex, 0.8);
+      } else {
+        // Bow mode: track "bowing" motion
+        handleKeyboardBow(rowIndex, key, row.note);
       }
     }
+  }
+  
+  function handleKeyboardBow(rowIndex, key, note) {
+    const now = Date.now();
+    const bowData = keyboardBowing.get(rowIndex);
+    
+    let velocity = MIN_KEYBOARD_VELOCITY;
+    
+    if (bowData) {
+      const timeSinceLastKey = now - bowData.lastKeyTime;
+      
+      // If this is a different key than last time (alternating keys)
+      // and it's within a reasonable time window, increase velocity
+      if (bowData.lastKey !== key && timeSinceLastKey < 500) {
+        // Calculate speed: shorter time = faster = louder
+        // Time between 50-300ms gives good velocity increase
+        const normalizedTime = Math.max(50, Math.min(timeSinceLastKey, 300));
+        const speedFactor = (300 - normalizedTime) / 250; // 0-1 range
+        
+        // Build velocity with each alternation
+        velocity = Math.min(bowData.velocity + (speedFactor * KEYBOARD_BOW_SPEED_MULTIPLIER) + 0.1, 1.0);
+        
+        console.log('Alternating! Time:', timeSinceLastKey, 'Speed factor:', speedFactor.toFixed(2), 'Velocity:', velocity.toFixed(2));
+      } else {
+        // Same key or too slow - start fresh but keep some momentum
+        velocity = Math.max(MIN_KEYBOARD_VELOCITY, bowData.velocity * 0.5);
+      }
+    }
+    
+    // Update bow data
+    keyboardBowing.set(rowIndex, {
+      lastKeyTime: now,
+      lastKey: key,
+      velocity: velocity,
+      isPlaying: true
+    });
+    
+    // Play or update note
+    if (audioEngine) {
+      if (!bowData || !bowData.isPlaying) {
+        audioEngine.playNote(note, `row-${rowIndex}`, velocity);
+      } else {
+        audioEngine.setVelocity(`row-${rowIndex}`, velocity);
+      }
+    }
+    
+    // Update visual
+    triggerRowVisual(rowIndex, velocity);
+  }
+  
+  function triggerRowVisual(rowIndex, volume) {
+    rowVisuals.set(rowIndex, {
+      isActive: true,
+      volume: volume,
+      timestamp: Date.now()
+    });
+    
+    // Create new Map to trigger reactivity
+    rowVisuals = new Map(rowVisuals);
+  }
+  
+  function startKeyboardTracking() {
+    const update = () => {
+      const now = Date.now();
+      let needsUpdate = false;
+      
+      // Decay keyboard bowing velocities and stop hanging notes
+      keyboardBowing.forEach((bowData, rowIndex) => {
+        const timeSinceLastKey = now - bowData.lastKeyTime;
+        
+        // Stop note if no key pressed recently
+        if (timeSinceLastKey > KEYBOARD_NOTE_TIMEOUT && bowData.isPlaying) {
+          if (audioEngine) {
+            audioEngine.stopNote(`row-${rowIndex}`);
+          }
+          bowData.isPlaying = false;
+          bowData.velocity *= KEYBOARD_BOW_DECAY;
+          needsUpdate = true;
+        }
+        
+        // Decay velocity when not actively pressing keys
+        if (timeSinceLastKey > 50) {
+          bowData.velocity *= KEYBOARD_BOW_DECAY;
+          
+          // Update audio with decaying velocity if still playing
+          if (audioEngine && bowData.isPlaying && bowData.velocity > 0.05) {
+            audioEngine.setVelocity(`row-${rowIndex}`, bowData.velocity);
+          } else if (bowData.velocity <= 0.05) {
+            // Clean up when velocity too low
+            if (audioEngine && bowData.isPlaying) {
+              audioEngine.stopNote(`row-${rowIndex}`);
+            }
+            keyboardBowing.delete(rowIndex);
+          }
+          
+          needsUpdate = true;
+        }
+      });
+      
+      // Decay visual feedback
+      rowVisuals.forEach((visual, rowIndex) => {
+        const age = now - visual.timestamp;
+        if (age > 200) { // Shorter visual timeout
+          rowVisuals.delete(rowIndex);
+          needsUpdate = true;
+        }
+      });
+      
+      if (needsUpdate) {
+        keyboardBowing = new Map(keyboardBowing);
+        rowVisuals = new Map(rowVisuals);
+      }
+      
+      keyboardAnimationFrame = requestAnimationFrame(update);
+    };
+    
+    keyboardAnimationFrame = requestAnimationFrame(update);
   }
 
   function handleKeyup(e) {
@@ -119,16 +262,24 @@
       heldKeys.delete(key);
     }
   }
+  
+  // Get visual state for a row
+  function getRowVisual(rowIndex) {
+    return rowVisuals.get(rowIndex) || { isActive: false, volume: 0 };
+  }
 </script>
 
 <div class="grid-container">
   {#each rows as row, rowIndex}
+    {@const visual = getRowVisual(rowIndex)}
     <Row
       color={row.color}
       note={row.note}
       rowIndex={rowIndex}
       {audioEngine}
       {playMode}
+      keyboardActive={visual.isActive}
+      keyboardVolume={visual.volume}
     />
   {/each}
 </div>
@@ -140,5 +291,7 @@
     display: flex;
     flex-direction: column;
     gap: 0;
+    border-radius: 20px;
+    overflow: hidden;
   }
 </style>
