@@ -5,34 +5,27 @@
   
   // Available options
   const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-  const chordTypes = ['major', 'minor', 'dom7', 'maj7', 'min7'];
-  const chordTypeLabels = {
-    'major': 'Major',
-    'minor': 'Minor',
-    'dom7': 'Dom7',
-    'maj7': 'Maj7',
-    'min7': 'Min7'
-  };
+  const octaves = [2, 3, 4, 5]; // Four octave options
   
-  // Settings for each row (will load from localStorage or use defaults)
+  // Settings for each row
   let topRow = {
-    root: 'G',
-    chordType: 'major',
-    octave: 3, // high range
+    note: 'C4',
     visible: true
   };
   
-  let middleRow = {
-    root: 'F',
-    chordType: 'major',
-    octave: 3, // high range
+  let secondRow = {
+    note: 'F4',
+    visible: true
+  };
+  
+  let thirdRow = {
+    note: 'G4',
     visible: true
   };
   
   let bottomRow = {
-    root: 'C',
-    chordType: 'major',
-    octave: 3 // high range
+    note: 'A4',
+    visible: true
   };
   
   let reverbEnabled = true;
@@ -47,12 +40,13 @@
   });
   
   function loadSettings() {
-    const saved = localStorage.getItem('harp-settings');
+    const saved = localStorage.getItem('bars-settings');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
         if (parsed.topRow) topRow = parsed.topRow;
-        if (parsed.middleRow) middleRow = parsed.middleRow;
+        if (parsed.secondRow) secondRow = parsed.secondRow;
+        if (parsed.thirdRow) thirdRow = parsed.thirdRow;
         if (parsed.bottomRow) bottomRow = parsed.bottomRow;
         if (parsed.reverb !== undefined) reverbEnabled = parsed.reverb;
         console.log('Loaded settings:', parsed);
@@ -65,11 +59,12 @@
   function saveSettings() {
     const settings = {
       topRow,
-      middleRow,
+      secondRow,
+      thirdRow,
       bottomRow,
       reverb: reverbEnabled
     };
-    localStorage.setItem('harp-settings', JSON.stringify(settings));
+    localStorage.setItem('bars-settings', JSON.stringify(settings));
     console.log('Saved settings:', settings);
   }
   
@@ -77,7 +72,8 @@
     saveSettings();
     dispatch('updateSettings', {
       topRow,
-      middleRow,
+      secondRow,
+      thirdRow,
       bottomRow,
       reverb: reverbEnabled
     });
@@ -90,21 +86,46 @@
     }
   }
   
+  // Parse note string into note name and octave
+  function parseNote(noteString) {
+    const match = noteString.match(/^([A-G][#]?)(\d+)$/);
+    if (match) {
+      return { noteName: match[1], octave: parseInt(match[2]) };
+    }
+    return { noteName: 'C', octave: 4 };
+  }
+  
+  // Combine note name and octave into note string
+  function combineNote(noteName, octave) {
+    return noteName + octave;
+  }
+  
   // Cycle functions
   function cycleNote(currentNote, direction) {
-    const currentIndex = noteNames.indexOf(currentNote);
+    const { noteName, octave } = parseNote(currentNote);
+    const currentIndex = noteNames.indexOf(noteName);
     let newIndex = currentIndex + direction;
     if (newIndex < 0) newIndex = noteNames.length - 1;
     if (newIndex >= noteNames.length) newIndex = 0;
-    return noteNames[newIndex];
+    return combineNote(noteNames[newIndex], octave);
   }
   
-  function cycleChordType(currentType, direction) {
-    const currentIndex = chordTypes.indexOf(currentType);
+  function cycleOctave(currentNote, direction) {
+    const { noteName, octave } = parseNote(currentNote);
+    const currentIndex = octaves.indexOf(octave);
     let newIndex = currentIndex + direction;
-    if (newIndex < 0) newIndex = chordTypes.length - 1;
-    if (newIndex >= chordTypes.length) newIndex = 0;
-    return chordTypes[newIndex];
+    if (newIndex < 0) newIndex = octaves.length - 1;
+    if (newIndex >= octaves.length) newIndex = 0;
+    return combineNote(noteName, octaves[newIndex]);
+  }
+  
+  // Get display values
+  function getNoteName(noteString) {
+    return parseNote(noteString).noteName;
+  }
+  
+  function getOctave(noteString) {
+    return parseNote(noteString).octave;
   }
 </script>
 
@@ -114,7 +135,7 @@
     <div class="options-wrapper">
       
       <!-- TOP ROW -->
-      <div class="row-section" style="background-color: rgb(240, 228, 66);">
+      <div class="row-section" style="background-color: rgb(230, 159, 0);">
         <div class="row-header">
           <h2>Top Row</h2>
           <label class="checkbox-container">
@@ -125,68 +146,71 @@
         
         <div class="row-controls">
           <div class="control-row">
-            <span class="label">Root:</span>
-            <button class="arrow-btn" on:click={() => topRow.root = cycleNote(topRow.root, -1)}>◀</button>
-            <span class="value">{topRow.root}</span>
-            <button class="arrow-btn" on:click={() => topRow.root = cycleNote(topRow.root, 1)}>▶</button>
+            <span class="label">Note:</span>
+            <button class="arrow-btn" on:click={() => topRow.note = cycleNote(topRow.note, -1)}>◀</button>
+            <span class="value">{getNoteName(topRow.note)}</span>
+            <button class="arrow-btn" on:click={() => topRow.note = cycleNote(topRow.note, 1)}>▶</button>
           </div>
           
           <div class="control-row">
-            <span class="label">Type:</span>
-            <button class="arrow-btn" on:click={() => topRow.chordType = cycleChordType(topRow.chordType, -1)}>◀</button>
-            <span class="value">{chordTypeLabels[topRow.chordType]}</span>
-            <button class="arrow-btn" on:click={() => topRow.chordType = cycleChordType(topRow.chordType, 1)}>▶</button>
-          </div>
-          
-          <div class="control-row">
-            <span class="label">Range:</span>
-            <label class="radio-label">
-              <input type="radio" bind:group={topRow.octave} value={2} />
-              Low
-            </label>
-            <label class="radio-label">
-              <input type="radio" bind:group={topRow.octave} value={3} />
-              High
-            </label>
+            <span class="label">Octave:</span>
+            <button class="arrow-btn" on:click={() => topRow.note = cycleOctave(topRow.note, -1)}>◀</button>
+            <span class="value">{getOctave(topRow.note)}</span>
+            <button class="arrow-btn" on:click={() => topRow.note = cycleOctave(topRow.note, 1)}>▶</button>
           </div>
         </div>
       </div>
       
-      <!-- MIDDLE ROW -->
-      <div class="row-section" style="background-color: rgb(204, 121, 167);">
+      <!-- SECOND ROW -->
+      <div class="row-section" style="background-color: rgb(86, 180, 233);">
         <div class="row-header">
-          <h2>Middle Row</h2>
+          <h2>Second Row</h2>
           <label class="checkbox-container">
-            <input type="checkbox" bind:checked={middleRow.visible} />
+            <input type="checkbox" bind:checked={secondRow.visible} />
             <span>Show</span>
           </label>
         </div>
         
         <div class="row-controls">
           <div class="control-row">
-            <span class="label">Root:</span>
-            <button class="arrow-btn" on:click={() => middleRow.root = cycleNote(middleRow.root, -1)}>◀</button>
-            <span class="value">{middleRow.root}</span>
-            <button class="arrow-btn" on:click={() => middleRow.root = cycleNote(middleRow.root, 1)}>▶</button>
+            <span class="label">Note:</span>
+            <button class="arrow-btn" on:click={() => secondRow.note = cycleNote(secondRow.note, -1)}>◀</button>
+            <span class="value">{getNoteName(secondRow.note)}</span>
+            <button class="arrow-btn" on:click={() => secondRow.note = cycleNote(secondRow.note, 1)}>▶</button>
           </div>
           
           <div class="control-row">
-            <span class="label">Type:</span>
-            <button class="arrow-btn" on:click={() => middleRow.chordType = cycleChordType(middleRow.chordType, -1)}>◀</button>
-            <span class="value">{chordTypeLabels[middleRow.chordType]}</span>
-            <button class="arrow-btn" on:click={() => middleRow.chordType = cycleChordType(middleRow.chordType, 1)}>▶</button>
+            <span class="label">Octave:</span>
+            <button class="arrow-btn" on:click={() => secondRow.note = cycleOctave(secondRow.note, -1)}>◀</button>
+            <span class="value">{getOctave(secondRow.note)}</span>
+            <button class="arrow-btn" on:click={() => secondRow.note = cycleOctave(secondRow.note, 1)}>▶</button>
+          </div>
+        </div>
+      </div>
+      
+      <!-- THIRD ROW -->
+      <div class="row-section" style="background-color: rgb(213, 94, 0);">
+        <div class="row-header">
+          <h2>Third Row</h2>
+          <label class="checkbox-container">
+            <input type="checkbox" bind:checked={thirdRow.visible} />
+            <span>Show</span>
+          </label>
+        </div>
+        
+        <div class="row-controls">
+          <div class="control-row">
+            <span class="label">Note:</span>
+            <button class="arrow-btn" on:click={() => thirdRow.note = cycleNote(thirdRow.note, -1)}>◀</button>
+            <span class="value">{getNoteName(thirdRow.note)}</span>
+            <button class="arrow-btn" on:click={() => thirdRow.note = cycleNote(thirdRow.note, 1)}>▶</button>
           </div>
           
           <div class="control-row">
-            <span class="label">Range:</span>
-            <label class="radio-label">
-              <input type="radio" bind:group={middleRow.octave} value={2} />
-              Low
-            </label>
-            <label class="radio-label">
-              <input type="radio" bind:group={middleRow.octave} value={3} />
-              High
-            </label>
+            <span class="label">Octave:</span>
+            <button class="arrow-btn" on:click={() => thirdRow.note = cycleOctave(thirdRow.note, -1)}>◀</button>
+            <span class="value">{getOctave(thirdRow.note)}</span>
+            <button class="arrow-btn" on:click={() => thirdRow.note = cycleOctave(thirdRow.note, 1)}>▶</button>
           </div>
         </div>
       </div>
@@ -199,35 +223,23 @@
         
         <div class="row-controls">
           <div class="control-row">
-            <span class="label">Root:</span>
-            <button class="arrow-btn" on:click={() => bottomRow.root = cycleNote(bottomRow.root, -1)}>◀</button>
-            <span class="value">{bottomRow.root}</span>
-            <button class="arrow-btn" on:click={() => bottomRow.root = cycleNote(bottomRow.root, 1)}>▶</button>
+            <span class="label">Note:</span>
+            <button class="arrow-btn" on:click={() => bottomRow.note = cycleNote(bottomRow.note, -1)}>◀</button>
+            <span class="value">{getNoteName(bottomRow.note)}</span>
+            <button class="arrow-btn" on:click={() => bottomRow.note = cycleNote(bottomRow.note, 1)}>▶</button>
           </div>
           
           <div class="control-row">
-            <span class="label">Type:</span>
-            <button class="arrow-btn" on:click={() => bottomRow.chordType = cycleChordType(bottomRow.chordType, -1)}>◀</button>
-            <span class="value">{chordTypeLabels[bottomRow.chordType]}</span>
-            <button class="arrow-btn" on:click={() => bottomRow.chordType = cycleChordType(bottomRow.chordType, 1)}>▶</button>
-          </div>
-          
-          <div class="control-row">
-            <span class="label">Range:</span>
-            <label class="radio-label">
-              <input type="radio" bind:group={bottomRow.octave} value={2} />
-              Low
-            </label>
-            <label class="radio-label">
-              <input type="radio" bind:group={bottomRow.octave} value={3} />
-              High
-            </label>
+            <span class="label">Octave:</span>
+            <button class="arrow-btn" on:click={() => bottomRow.note = cycleOctave(bottomRow.note, -1)}>◀</button>
+            <span class="value">{getOctave(bottomRow.note)}</span>
+            <button class="arrow-btn" on:click={() => bottomRow.note = cycleOctave(bottomRow.note, 1)}>▶</button>
           </div>
         </div>
       </div>
       
       <!-- AUDIO SETTINGS -->
-      <div class="row-section" style="background-color: rgb(230, 159, 0);">
+      <div class="row-section" style="background-color: rgb(240, 228, 66);">
         <div class="row-header">
           <h2>Audio</h2>
         </div>
@@ -443,60 +455,60 @@
 /* Mobile Portrait */
 @media (max-width: 480px) {
   .options-screen {
-    padding: 0.4rem; /* Reduced from 0.5rem */
+    padding: 0.4rem;
     justify-content: flex-start;
   }
   
   .content {
-    gap: 0.3rem; /* Reduced from 0.4rem */
+    gap: 0.3rem;
     padding-top: 0;
   }
   
   h2 {
-    font-size: 0.95rem; /* Slightly smaller */
+    font-size: 0.95rem;
   }
   
   .options-wrapper {
-    gap: 0.5rem; /* Reduced from 0.6rem */
+    gap: 0.5rem;
   }
   
   .row-section {
-    padding: 0.5rem; /* Reduced from 0.6rem */
+    padding: 0.5rem;
   }
   
   .row-header {
-    margin-bottom: 0.5rem; /* Add this to reduce space */
-    padding-bottom: 0.3rem; /* Add this */
+    margin-bottom: 0.5rem;
+    padding-bottom: 0.3rem;
   }
   
   .row-controls {
-    gap: 0.35rem; /* Reduced from 0.4rem */
+    gap: 0.35rem;
   }
   
   .label {
-    font-size: 0.85rem; /* Slightly smaller */
-    min-width: 45px; /* Reduced from 50px */
+    font-size: 0.85rem;
+    min-width: 45px;
   }
   
   .value {
-    font-size: 0.95rem; /* Slightly smaller */
-    min-width: 45px; /* Reduced from 50px */
+    font-size: 0.95rem;
+    min-width: 45px;
   }
   
   .arrow-btn {
-    padding: 0.35rem 0.55rem; /* Slightly reduced */
-    font-size: 0.85rem; /* Slightly smaller */
-    min-width: 32px; /* Reduced from 35px */
+    padding: 0.35rem 0.55rem;
+    font-size: 0.85rem;
+    min-width: 32px;
   }
   
   .radio-label {
-    font-size: 0.85rem; /* Slightly smaller */
+    font-size: 0.85rem;
   }
   
   .save-button {
-    padding: 0.7rem 1.8rem; /* Slightly reduced */
-    font-size: 0.95rem; /* Slightly smaller */
-    margin-top: 0.3rem; /* Reduced from 0.4rem */
+    padding: 0.7rem 1.8rem;
+    font-size: 0.95rem;
+    margin-top: 0.3rem;
   }
 }
 
