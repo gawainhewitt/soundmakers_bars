@@ -156,7 +156,7 @@
     on:change={handleModeChange}
   />
   
-  <div style="position: fixed; top: 20px; right: 90px; z-index: 1000;">
+  <div style="position: fixed; top: 20px; right: 65px; z-index: 1000;">
     <IconButton 
       type="settings" 
       ariaLabel="Options"
