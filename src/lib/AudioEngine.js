@@ -28,7 +28,7 @@ export class AudioEngine {
       console.log('AudioContext created, state:', this.audioContext.state);
 
       this.masterGain = this.audioContext.createGain();
-      this.masterGain.gain.value = 0.3; // Slightly higher for samples
+      this.masterGain.gain.value = 0.9; // Slightly higher for samples
       
       this.reverb = this.createReverb();
       

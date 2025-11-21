@@ -8,13 +8,13 @@ export class SynthEngine {
     this.vibratoRate = 2;
     this.harmonicity = 2.02;
     
-    this.ampEnv = { a: 0.1, d: 0.3, s: 0.8, r: 0.3 }; // Faster release (was 0.5)
-    this.filterEnv = { a: 0.1, d: 0.3, s: 0.6, r: 0.5 }; // Faster release (was 1)
-    this.envFreq = 4000;
+    this.ampEnv = { a: 1, d: 1, s: 0.6, r: 2 }; // Match Tone.js timings
+    this.filterEnv = { a: 1, d: 1, s: 0.6, r: 5 }; // Match Tone.js timings
+    this.envFreq = 8000; // Brighter - raised from 4000
     this.cutoffFreq = 1;
     
-    this.voice0Volume = -22;
-    this.voice1Volume = -28;
+    this.voice0Volume = -16;
+    this.voice1Volume = -22;
     
     this.chorusNode = this.createChorus();
     this.output = this.audioContext.createGain();
@@ -31,8 +31,8 @@ export class SynthEngine {
     const wetGain = this.audioContext.createGain();
     const dryGain = this.audioContext.createGain();
     
-    wetGain.gain.value = 0.1;
-    dryGain.gain.value = 0.9;
+    wetGain.gain.value = 0.2;
+    dryGain.gain.value = 0.8;
     
     for (let i = 0; i < 3; i++) {
       const delay = this.audioContext.createDelay();
@@ -144,19 +144,28 @@ export class SynthEngine {
     const voice1Gain = this.dbToGain(this.voice0Volume) * velocity;
     const voice2Gain = this.dbToGain(this.voice1Volume) * velocity;
     
+    // Amplitude envelope: Attack -> Decay -> Sustain
     gain1.gain.setValueAtTime(0, now);
     gain1.gain.linearRampToValueAtTime(voice1Gain, now + this.ampEnv.a);
+    gain1.gain.linearRampToValueAtTime(voice1Gain * this.ampEnv.s, now + this.ampEnv.a + this.ampEnv.d);
     
     gain2.gain.setValueAtTime(0, now);
     gain2.gain.linearRampToValueAtTime(voice2Gain, now + this.ampEnv.a);
+    gain2.gain.linearRampToValueAtTime(voice2Gain * this.ampEnv.s, now + this.ampEnv.a + this.ampEnv.d);
     
+    // Tone.js filterEnvelope with octaves: -0.2 means the filter sweeps
+    // from baseFrequency down by 0.2 octaves during attack, then back up
+    // Calculate the octave shift: -0.2 octaves = frequency * 2^(-0.2) ≈ frequency * 0.87
     const filterPeak = this.envFreq;
+    const filterStart = filterPeak * Math.pow(2, -0.2); // Start 0.2 octaves below
     
-    filter1.frequency.setValueAtTime(this.cutoffFreq, now);
+    filter1.frequency.setValueAtTime(filterStart, now);
     filter1.frequency.linearRampToValueAtTime(filterPeak, now + this.filterEnv.a);
+    filter1.frequency.linearRampToValueAtTime(filterPeak * this.filterEnv.s, now + this.filterEnv.a + this.filterEnv.d);
     
-    filter2.frequency.setValueAtTime(this.cutoffFreq, now);
+    filter2.frequency.setValueAtTime(filterStart, now);
     filter2.frequency.linearRampToValueAtTime(filterPeak, now + this.filterEnv.a);
+    filter2.frequency.linearRampToValueAtTime(filterPeak * this.filterEnv.s, now + this.filterEnv.a + this.filterEnv.d);
     
     return {
       osc1,
