@@ -4,7 +4,7 @@
   const dispatch = createEventDispatcher();
   
   export let color = 'rgb(230, 159, 0)';
-  export let note = 'C4';
+  export let note = 'C3';
   export let rowIndex = 0;
   export let audioEngine = null;
   export let playMode = 'bow';

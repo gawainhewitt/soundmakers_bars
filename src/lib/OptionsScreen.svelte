@@ -9,27 +9,25 @@
   
   // Settings for each row
   let topRow = {
-    note: 'C4',
+    note: 'C3',
     visible: true
   };
   
   let secondRow = {
-    note: 'F4',
+    note: 'F3',
     visible: true
   };
   
   let thirdRow = {
-    note: 'G4',
+    note: 'G3',
     visible: true
   };
   
   let bottomRow = {
-    note: 'A4',
+    note: 'A3',
     visible: true
   };
-  
-  let reverbEnabled = true;
-  
+    
   onMount(() => {
     loadSettings();
     window.addEventListener('keydown', handleKeydown);
@@ -48,7 +46,6 @@
         if (parsed.secondRow) secondRow = parsed.secondRow;
         if (parsed.thirdRow) thirdRow = parsed.thirdRow;
         if (parsed.bottomRow) bottomRow = parsed.bottomRow;
-        if (parsed.reverb !== undefined) reverbEnabled = parsed.reverb;
         console.log('Loaded settings:', parsed);
       } catch (e) {
         console.error('Failed to parse saved settings:', e);
@@ -62,7 +59,6 @@
       secondRow,
       thirdRow,
       bottomRow,
-      reverb: reverbEnabled
     };
     localStorage.setItem('bars-settings', JSON.stringify(settings));
     console.log('Saved settings:', settings);
@@ -75,7 +71,6 @@
       secondRow,
       thirdRow,
       bottomRow,
-      reverb: reverbEnabled
     });
     dispatch('close');
   }
@@ -92,7 +87,7 @@
     if (match) {
       return { noteName: match[1], octave: parseInt(match[2]) };
     }
-    return { noteName: 'C', octave: 4 };
+    return { noteName: 'C', octave: 3 };
   }
   
   // Combine note name and octave into note string
@@ -236,29 +231,7 @@
             <button class="arrow-btn" on:click={() => bottomRow.note = cycleOctave(bottomRow.note, 1)}>▶</button>
           </div>
         </div>
-      </div>
-      
-      <!-- AUDIO SETTINGS -->
-      <div class="row-section" style="background-color: rgb(240, 228, 66);">
-        <div class="row-header">
-          <h2>Audio</h2>
-        </div>
-        
-        <div class="row-controls">
-          <div class="control-row">
-            <span class="label">Reverb:</span>
-            <label class="radio-label">
-              <input type="radio" bind:group={reverbEnabled} value={true} />
-              On
-            </label>
-            <label class="radio-label">
-              <input type="radio" bind:group={reverbEnabled} value={false} />
-              Off
-            </label>
-          </div>
-        </div>
-      </div>
-      
+      </div>      
     </div>
     
     <button class="save-button" on:click={handleSaveAndClose}>
@@ -391,21 +364,6 @@
     text-align: center;
   }
   
-  .radio-label {
-    display: flex;
-    align-items: center;
-    gap: 0.3rem;
-    cursor: pointer;
-    font-size: 1rem;
-    color: #333;
-  }
-  
-  .radio-label input {
-    width: 18px;
-    height: 18px;
-    cursor: pointer;
-  }
-  
   .save-button {
     background-color: #06C0F0;
     color: white;
@@ -501,10 +459,6 @@
     min-width: 32px;
   }
   
-  .radio-label {
-    font-size: 0.85rem;
-  }
-  
   .save-button {
     padding: 0.7rem 1.8rem;
     font-size: 0.95rem;
@@ -566,10 +520,6 @@
     padding: 0.4rem 0.6rem;
     font-size: 0.85rem;
     min-width: 32px;
-  }
-  
-  .radio-label {
-    font-size: 0.85rem;
   }
   
   .save-button {
@@ -655,15 +605,6 @@
     padding: 0.3rem 0.45rem;
     font-size: 0.75rem;
     min-width: 28px;
-  }
-  
-  .radio-label {
-    font-size: 0.75rem;
-  }
-  
-  .radio-label input {
-    width: 13px;
-    height: 13px;
   }
 }
   

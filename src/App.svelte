@@ -28,11 +28,10 @@
     }
     
     return {
-      topRow: { note: 'C4', visible: true },
-      secondRow: { note: 'F4', visible: true },
-      thirdRow: { note: 'G4', visible: true },
-      bottomRow: { note: 'A4', visible: true },
-      reverb: true
+      topRow: { note: 'C3', visible: true },
+      secondRow: { note: 'F3', visible: true },
+      thirdRow: { note: 'G3', visible: true },
+      bottomRow: { note: 'A3', visible: true },
     };
   }
 
@@ -97,10 +96,6 @@
   function handleSettingsUpdate(event) {
     settings = event.detail;
     console.log('Settings updated:', settings);
-    
-    if (audioEngine) {
-      audioEngine.setReverbEnabled(settings.reverb);
-    }
   }
 
   function closeOptions() {

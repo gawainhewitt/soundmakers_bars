@@ -29,15 +29,12 @@ export class AudioEngine {
 
       this.masterGain = this.audioContext.createGain();
       this.masterGain.gain.value = 0.9; // Slightly higher for samples
-      
-      this.reverb = this.createReverb();
-      
+      this.masterGain.connect(this.audioContext.destination);
+            
       // Create synth engine for bow mode
       this.synthEngine = new SynthEngine(this.audioContext);
-      this.synthEngine.connect(this.reverb.input);
+      this.synthEngine.connect(this.masterGain);
       
-      this.setReverbEnabled(true);
-
       // Load cello samples for pluck mode
       await this.loadSamples();
 
@@ -100,75 +97,6 @@ export class AudioEngine {
     });
 
     return closestSample;
-  }
-
-  createReverb() {
-    const reverbGain = this.audioContext.createGain();
-    reverbGain.gain.value = 0.3;
-    
-    const delays = [];
-    const gains = [];
-    
-    const delayTimes = [0.023, 0.037, 0.053, 0.067];
-    const feedbackAmount = 0.5;
-    
-    delayTimes.forEach((time, i) => {
-      const delay = this.audioContext.createDelay();
-      delay.delayTime.value = time;
-      
-      const gain = this.audioContext.createGain();
-      gain.gain.value = 0.7 / delayTimes.length;
-      
-      const feedback = this.audioContext.createGain();
-      feedback.gain.value = feedbackAmount;
-      
-      delay.connect(gain);
-      gain.connect(feedback);
-      feedback.connect(delay);
-      
-      delays.push(delay);
-      gains.push(gain);
-    });
-    
-    const dryGain = this.audioContext.createGain();
-    dryGain.gain.value = 0.5; // More wet for cello samples
-    
-    const wetGain = this.audioContext.createGain();
-    wetGain.gain.value = 0.5;
-    
-    const input = this.audioContext.createGain();
-    const output = this.audioContext.createGain();
-    
-    input.connect(dryGain);
-    dryGain.connect(output);
-    
-    delays.forEach((delay, i) => {
-      input.connect(delays[i]);
-      gains[i].connect(wetGain);
-    });
-    wetGain.connect(output);
-    
-    output.input = input;
-    
-    return output;
-  }
-
-  setReverbEnabled(enabled) {
-    if (!this.audioContext || !this.masterGain) {
-      console.warn('AudioEngine not initialized');
-      return;
-    }
-    
-    this.masterGain.disconnect();
-    
-    if (enabled && this.reverb) {
-      this.masterGain.connect(this.reverb.input);
-      this.reverb.connect(this.audioContext.destination);
-      console.log('Reverb enabled');
-    } else {
-      this.masterGain.connect(this.audioContext.destination);
-      console.log('Reverb disabled');
-    }
   }
 
   noteToFrequency(note) {
