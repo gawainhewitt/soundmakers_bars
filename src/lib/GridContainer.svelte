@@ -8,25 +8,25 @@
     { 
       id: 0, 
       color: 'rgb(230, 159, 0)',
-      note: settings.topRow?.note || 'C4',
+      note: settings.topRow?.note || 'C3',
       visible: settings.topRow?.visible ?? true
     },
     { 
       id: 1, 
       color: 'rgb(86, 180, 233)',
-      note: settings.secondRow?.note || 'F4',
+      note: settings.secondRow?.note || 'F3',
       visible: settings.secondRow?.visible ?? true
     },
     { 
       id: 2, 
       color: 'rgb(213, 94, 0)',
-      note: settings.thirdRow?.note || 'G4',
+      note: settings.thirdRow?.note || 'G3',
       visible: settings.thirdRow?.visible ?? true
     },
     { 
       id: 3, 
       color: 'rgb(0, 158, 115)',
-      note: settings.bottomRow?.note || 'A4',
+      note: settings.bottomRow?.note || 'A3',
       visible: settings.bottomRow?.visible ?? true
     }
   ].filter(row => row.visible) : []);
